@@ -39,6 +39,34 @@ def custom_openapi():
         routes=app.routes,
     )
 
+    # -----------------------------
+    # Servers (BASE URL for SDKs)
+    # -----------------------------
+    schema["servers"] = [
+        {
+            "url": "https://name-classify-api.fastapicloud.dev"
+        }
+    ]
+
+    # -----------------------------
+    # Add global API Key security
+    # -----------------------------
+    schema.setdefault("components", {})
+    schema["components"].setdefault("securitySchemes", {})
+
+    schema["components"]["securitySchemes"]["ApiKeyAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API_KEY"
+    }
+
+    schema["security"] = [
+        {"ApiKeyAuth": []}
+    ]
+
+    # -----------------------------
+    # Add custom header to /api/*
+    # -----------------------------
     for path, methods in schema.get("paths", {}).items():
         if path.startswith("/api/"):
             for method in methods.values():

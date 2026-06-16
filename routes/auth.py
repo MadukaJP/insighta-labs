@@ -11,13 +11,15 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from dependencies.auth import get_current_user
+from dependencies.auth import get_current_user, require_admin
 from dependencies.database import get_db
 from dependencies.limiter import limiter
+from models.api_key import ApiKey
 from models.refresh_token import RefreshToken
 from models.user import User
 from pydantic_schemas.register_state_payload import RegisterStatePayload
 from services.user_service import upsert_user
+from utils.api_key import generate_api_key, hash_api_key
 from utils.custom_content import custom_content
 from utils.state_store import consume_state, generate_pkce, save_state
 from utils.tokens import create_access_token, create_refresh_token
@@ -85,15 +87,7 @@ def set_session_cookies(
         max_age=REFRESH_TOKEN_SECONDS,
         path="/",
     )
-    response.set_cookie(
-        key=CSRF_COOKIE_NAME,
-        value=secrets.token_urlsafe(32),
-        httponly=False,
-        samesite=COOKIE_SAMESITE,
-        secure=COOKIE_SECURE,
-        max_age=REFRESH_TOKEN_SECONDS,
-        path="/",
-    )
+
 
 
 def clear_session_cookies(response: JSONResponse) -> None:
@@ -203,6 +197,7 @@ def github_login(request: Request):
 @router.post("/register-state")
 @limiter.limit("10/minute")
 def register_state(request: Request, payload: RegisterStatePayload):
+
     save_state(
         state=payload.state,
         code_verifier=payload.code_verifier,
@@ -326,6 +321,61 @@ async def refresh_tokens(
     set_session_cookies(response, new_access, new_refresh)
     return response
 
+@router.get("/csrf-token")
+@limiter.limit("10/minute")
+def csrf_token(request: Request, current_user: User = Depends(require_admin)):
+        token = secrets.token_urlsafe(32)
+        response = JSONResponse(
+            content={
+                "status": "success",
+                "data": {
+                    "csrf_token": token
+                },
+            }
+        )
+        response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value= token,
+        httponly=False,
+        samesite=COOKIE_SAMESITE,
+        secure=COOKIE_SECURE,
+        max_age=REFRESH_TOKEN_SECONDS,
+        path="/",
+         )
+        return response
+
+
+
+@router.post("/api-keys")
+@limiter.limit("10/minute")
+def create_api_key(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # delete existing key (enforce 1 per user)
+    existing = db.query(ApiKey).filter(ApiKey.user_id == user.id).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    raw_key = generate_api_key()
+
+    api_key = ApiKey(
+        user_id=user.id,
+        key_hash=hash_api_key(raw_key),
+        prefix=raw_key[:12]
+    )
+
+    db.add(api_key)
+    db.commit()
+
+    # IMPORTANT: return raw key ONLY once
+    return {
+        "api_key": raw_key
+    }
+
+
 
 @router.post("/logout")
 @limiter.limit("10/minute")
@@ -347,6 +397,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
     response = JSONResponse(content={"status": "success"})
     clear_session_cookies(response)
     return response
+
 
 
 @router.get("/me")
