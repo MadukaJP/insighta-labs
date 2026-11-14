@@ -1,4 +1,5 @@
 import math
+import uuid
 import csv, io
 from fastapi import Query, Request, Response, APIRouter, Depends
 from fastapi.responses import JSONResponse
@@ -518,7 +519,15 @@ def get_profile(
             content=custom_content("error", message="Bad Request: Missing or empty id"),
         )
 
-    profile_db = db.query(Profile).filter(Profile.id == id).first()
+    try:
+        profile_id = uuid.UUID(id)
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content=custom_content("error", message="Invalid profile ID"),
+        )
+
+    profile_db = db.query(Profile).filter(Profile.id == profile_id).first()
 
     if not profile_db:
         return JSONResponse(
@@ -542,7 +551,15 @@ def delete_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    profile_db = db.query(Profile).filter(Profile.id == id).first()
+    try:
+        profile_id = uuid.UUID(id)
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content=custom_content("error", message="Invalid profile ID"),
+        )
+
+    profile_db = db.query(Profile).filter(Profile.id == profile_id).first()
 
     if not profile_db:
         return JSONResponse(
