@@ -39,7 +39,9 @@ jobs:
       SECRET_KEY: test-secret-key
       ADMIN_GITHUB_USERNAMES: testadmin
       GITHUB_CLIENT_ID: test-client-id
+      GITHUB_CLIENT_ID_CLI: test-cli-client-id
       GITHUB_CLIENT_SECRET: test-client-secret
+      GITHUB_CLIENT_SECRET_CLI: test-cli-client-secret
       FRONTEND_URL: http://localhost:3000
       LOCAL_DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/insighta_test
       REDIS_URL: redis://localhost:6379/0

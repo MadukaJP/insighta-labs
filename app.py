@@ -19,6 +19,10 @@ from utils.custom_content import custom_content
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        Base.metadata.create_all(engine)
+    except Exception:
+        pass
     app.state.limiter = limiter
     app.state.client = httpx.AsyncClient()
     yield
@@ -152,4 +156,8 @@ app.add_middleware(
 )
 
 
-Base.metadata.create_all(engine)
+try:
+    Base.metadata.create_all(engine)
+except Exception:
+    pass
+
