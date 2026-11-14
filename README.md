@@ -1,12 +1,13 @@
-# Name Classify API
+# Insighta Labs+ API
 
 [![Live API](https://img.shields.io/badge/Live%20API-Online-blue?logo=fastapi)](https://name-classify-api.fastapicloud.dev/)
 [![Docs](https://img.shields.io/badge/Swagger-Docs-green)](https://name-classify-api.fastapicloud.dev/docs)
 
-`Name Classify API` is now the backend for **Insighta Labs+**, a secure profile intelligence platform. It accepts a person's name, calls public prediction APIs, stores normalized profiles in PostgreSQL, and exposes authenticated APIs shared by the CLI and web portal.
+**Insighta Labs+ API** (formerly `Name Classify API`) is the backend for **Insighta Labs+**, a secure profile intelligence platform. It accepts a person's name, calls public prediction APIs, stores normalized profiles in PostgreSQL, and exposes authenticated APIs shared by the CLI and web portal.
 
 ## Live Links
 
+- Repository: [https://github.com/MadukaJP/insighta-labs](https://github.com/MadukaJP/insighta-labs)
 - Base URL: [https://name-classify-api.fastapicloud.dev/](https://name-classify-api.fastapicloud.dev/)
 - Swagger Docs: [https://name-classify-api.fastapicloud.dev/docs](https://name-classify-api.fastapicloud.dev/docs)
 - ReDoc: [https://name-classify-api.fastapicloud.dev/redoc](https://name-classify-api.fastapicloud.dev/redoc)
@@ -256,35 +257,70 @@ Response format:
 - Python
 - FastAPI
 - SQLAlchemy
-- PostgreSQL
-- Pydantic
+- PostgreSQL (with SQLite default fallback for local development)
+- Redis
+- Pydantic / Pydantic Settings
+- PyJWT & SlowAPI
 - HTTPX
 - Uvicorn
+- Pytest & Ruff
 
 ## Project Structure
 
 ```text
 .
+|-- .env.example
+|-- .github/
+|   `-- workflows/
+|       `-- backend-ci.yml
 |-- app.py
-|-- database.py
+|-- pytest.ini
 |-- requirements.txt
+|-- ruff.toml
+|-- core/
+|   |-- config.py
+|   `-- nlp/
+|       `-- profile_filter_detector.py
+|-- data/
+|   `-- seed_profiles.json
+|-- dependencies/
+|   |-- auth.py
+|   |-- database.py
+|   `-- limiter.py
+|-- middleware/
+|   |-- api_version.py
+|   |-- csrf.py
+|   `-- logging.py
 |-- models/
+|   |-- api_key.py
 |   |-- base.py
-|   `-- profile.py
-|-- routes/
-|   `-- profile.py
-|-- services/
-|   `-- external_apis.py
-|-- scripts/
-|   `-- seed_profiles.py
+|   |-- profile.py
+|   |-- refresh_token.py
+|   `-- user.py
 |-- pydantic_schemas/
 |   |-- profile_create.py
 |   |-- profile_out.py
-|   `-- profiles_out.py
+|   |-- profiles_out.py
+|   `-- register_state_payload.py
+|-- routes/
+|   |-- auth.py
+|   `-- profile.py
+|-- scripts/
+|   `-- seed_profiles.py
+|-- services/
+|   |-- external_apis.py
+|   `-- user_service.py
+|-- tests/
+|   |-- conftest.py
+|   `-- test_*.py
 `-- utils/
+    |-- api_key.py
+    |-- country_utils.py
     |-- custom_content.py
     |-- generate_id.py
-    `-- get_age_group.py
+    |-- get_age_group.py
+    |-- state_store.py
+    `-- tokens.py
 ```
 
 ## How It Works
@@ -313,7 +349,8 @@ For nationality, the API selects the country with the highest probability from t
 ### Prerequisites
 
 - Python 3.10 or higher
-- PostgreSQL
+- PostgreSQL (optional for quick local dev; defaults to SQLite `sqlite:///./local_dev.db`)
+- Redis (for OAuth PKCE state and rate limiting)
 - `pip`
 
 ### Installation
@@ -321,8 +358,8 @@ For nationality, the API selects the country with the highest probability from t
 1. Clone the repository:
 
 ```bash
-git clone <your-repo-url>
-cd name-classify-stage-1
+git clone https://github.com/MadukaJP/insighta-labs.git
+cd insighta-labs
 ```
 
 2. Create a virtual environment:
@@ -353,17 +390,28 @@ pip install -r requirements.txt
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` in the project root and configure your values:
 
 ```env
 ENV=development
-LOCAL_DATABASE_URL=postgresql+psycopg2://<user>:<password>@<host>:<port>/<database>
-PROD_DATABASE_URL=postgresql+psycopg2://<user>:<password>@<host>:<port>/<database>
+SECRET_KEY=your-super-secret-jwt-signing-key
+ADMIN_GITHUB_USERNAMES=your-github-username
+
+LOCAL_DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/name_classify
+PROD_DATABASE_URL=postgresql+psycopg2://user:password@prod-host:5432/name_classify
+
+GITHUB_CLIENT_ID=your-web-github-client-id
+GITHUB_CLIENT_SECRET=your-web-github-client-secret
+GITHUB_CLIENT_ID_CLI=your-cli-github-client-id
+GITHUB_CLIENT_SECRET_CLI=your-cli-github-client-secret
+
+FRONTEND_URL=http://localhost:3000
+REDIS_URL=redis://localhost:6379/0
 ```
 
 Behavior:
 
-- `ENV=development` uses `LOCAL_DATABASE_URL`
+- `ENV=development` uses `LOCAL_DATABASE_URL` (falls back to `sqlite:///./local_dev.db` if `.env` is not provided)
 - any other value uses `PROD_DATABASE_URL`
 
 ### Run Locally
@@ -385,7 +433,8 @@ Returns a simple welcome response.
 
 ```json
 {
-  "message": "Welcome to Name Classify API"
+  "status": "success",
+  "message": "Welcome to Instalabs API"
 }
 ```
 
@@ -551,11 +600,20 @@ Each stored profile contains:
 - Re-running the seed script skips duplicate names case-insensitively
 - Seeded profiles use normalized names, country codes, and UTC timestamps
 
+## Testing & Linting
+
+Run the test suite and linter with:
+
+```bash
+pytest
+ruff check .
+```
+
 ## Notes
 
 - IDs are generated as UUID v7 values
 - Timestamps are returned in UTC ISO 8601 format
-- CORS is enabled for all origins
+- CORS is enabled with credentials for `FRONTEND_URL`, `http://localhost:3000`, and `http://127.0.0.1:3000`
 - Tables are created automatically on application startup
 
 ## Author
