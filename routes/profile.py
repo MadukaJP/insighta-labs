@@ -32,7 +32,7 @@ ALLOWED_GENDERS = {"male", "female"}
 ALLOWED_AGE_GROUPS = {"child", "teenager", "adult", "senior"}
 
 
-@router.get("/users/me")
+@router.get("/users/me", tags=["Users"], operation_id="getCurrentUserProfile", summary="Get the current authenticated user profile")
 @limiter.limit("10/minute")
 def users_me(request: Request, current_user: User = Depends(get_current_user)):
     return JSONResponse(
@@ -73,7 +73,7 @@ def build_pagination_links(request: Request, page: int, limit: int, total_pages:
     }
 
 
-@router.post("/profiles")
+@router.post("/profiles", tags=["Profiles"], operation_id="createProfile", summary="Create a new profile from a name with enriched external data")
 @limiter.limit("60/minute")
 async def create_profile(
     request: Request,
@@ -184,7 +184,7 @@ async def create_profile(
     return JSONResponse(status_code=201, content=custom_content("success", data=profile_response))
 
 
-@router.get("/profiles/search")
+@router.get("/profiles/search", tags=["Profiles"], operation_id="searchProfiles", summary="Search profiles with NLP-based filters")
 @limiter.limit("60/minute")
 def search_profiles(
     request: Request,
@@ -281,7 +281,7 @@ def search_profiles(
     )
 
 
-@router.get("/profiles/export")
+@router.get("/profiles/export", tags=["Analytics"], operation_id="exportProfiles", summary="Export filtered profiles as CSV download")
 @limiter.limit("60/minute")
 def export_profiles(
     request: Request,
@@ -396,7 +396,7 @@ def export_profiles(
     )
 
 
-@router.get("/profiles")
+@router.get("/profiles", tags=["Profiles"], operation_id="listProfiles", summary="List profiles with filtering, sorting, and pagination")
 @limiter.limit("60/minute")
 def get_profiles(
     request: Request,
@@ -504,7 +504,7 @@ def get_profiles(
     )
 
 
-@router.get("/profiles/{id}")
+@router.get("/profiles/{id}", tags=["Profiles"], operation_id="getProfile", summary="Get a single profile by ID")
 @limiter.limit("60/minute")
 def get_profile(
     request: Request,
@@ -534,7 +534,7 @@ def get_profile(
     return JSONResponse(status_code=200, content=custom_content("success", data=profile_response))
 
 
-@router.delete("/profiles/{id}")
+@router.delete("/profiles/{id}", tags=["Profiles"], operation_id="deleteProfile", summary="Delete a profile by ID")
 @limiter.limit("60/minute")
 def delete_profile(
     request: Request,

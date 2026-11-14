@@ -121,7 +121,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # Routes
-@app.get("/")
+@app.get("/", tags=["Health"], operation_id="healthCheck", summary="Health check endpoint")
 def index():
     return {"status": "success", "message": "Welcome to Instalabs API"}
 

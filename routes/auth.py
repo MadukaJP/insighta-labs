@@ -172,7 +172,7 @@ def issue_token_pair(db: Session, user: User) -> tuple[str, str]:
     return access_token, refresh_token
 
 
-@router.get("/github")
+@router.get("/github", tags=["Auth"], operation_id="loginWithGithub", summary="Initiate GitHub OAuth login flow")
 @limiter.limit("10/minute")
 def github_login(request: Request):
     state = secrets.token_urlsafe(32)
@@ -194,7 +194,7 @@ def github_login(request: Request):
     return RedirectResponse(f"https://github.com/login/oauth/authorize?{params}")
 
 
-@router.post("/register-state")
+@router.post("/register-state", tags=["Auth"], operation_id="registerState", summary="Register OAuth state with PKCE code verifier")
 @limiter.limit("10/minute")
 def register_state(request: Request, payload: RegisterStatePayload):
 
@@ -209,7 +209,7 @@ def register_state(request: Request, payload: RegisterStatePayload):
     )
 
 
-@router.get("/github/callback")
+@router.get("/github/callback", tags=["Auth"], operation_id="exchangeGithubCallback", summary="Handle GitHub OAuth callback")
 @limiter.limit("10/minute")
 async def github_callback(
     request: Request,
@@ -238,7 +238,7 @@ async def github_callback(
     return response
 
 
-@router.post("/github/cli/callback")
+@router.post("/github/cli/callback", tags=["Auth"], operation_id="exchangeGithubCliCallback", summary="Handle GitHub OAuth callback for CLI clients")
 @limiter.limit("10/minute")
 async def github_cli_callback(
     request: Request,
@@ -270,7 +270,7 @@ async def github_cli_callback(
     )
 
 
-@router.post("/refresh")
+@router.post("/refresh", tags=["Auth"], operation_id="refreshTokens", summary="Rotate refresh token and issue new token pair")
 @limiter.limit("10/minute")
 async def refresh_tokens(
     request: Request,
@@ -321,7 +321,7 @@ async def refresh_tokens(
     set_session_cookies(response, new_access, new_refresh)
     return response
 
-@router.get("/csrf-token")
+@router.get("/csrf-token", tags=["Auth"], operation_id="getCsrfToken", summary="Generate and return a CSRF token")
 @limiter.limit("10/minute")
 def csrf_token(request: Request, current_user: User = Depends(require_admin)):
         token = secrets.token_urlsafe(32)
@@ -346,7 +346,7 @@ def csrf_token(request: Request, current_user: User = Depends(require_admin)):
 
 
 
-@router.post("/api-keys")
+@router.post("/api-keys", tags=["API Keys"], operation_id="createApiKey", summary="Create or replace an API key for the authenticated user")
 @limiter.limit("10/minute")
 def create_api_key(
     request: Request,
@@ -377,7 +377,7 @@ def create_api_key(
 
 
 
-@router.post("/logout")
+@router.post("/logout", tags=["Auth"], operation_id="logout", summary="Revoke refresh token and clear session cookies")
 @limiter.limit("10/minute")
 async def logout(request: Request, db: Session = Depends(get_db)):
     raw_token = request.cookies.get("refresh_token")
@@ -400,7 +400,7 @@ async def logout(request: Request, db: Session = Depends(get_db)):
 
 
 
-@router.get("/me")
+@router.get("/me", tags=["Users"], operation_id="getCurrentUser", summary="Get the current authenticated user")
 @limiter.limit("10/minute")
 def me(request: Request, current_user: User = Depends(get_current_user)):
     return JSONResponse(
