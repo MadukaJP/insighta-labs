@@ -616,6 +616,10 @@ ruff check .
 - CORS is enabled with credentials for `FRONTEND_URL`, `http://localhost:3000`, and `http://127.0.0.1:3000`
 - Tables are created automatically on application startup
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
 ## Author
 
 Built by `MadukaJP`.
